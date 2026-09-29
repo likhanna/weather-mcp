@@ -1,0 +1,29 @@
+{
+  "name": "weather-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local STDIO MCP server providing weather forecasts through Open-Meteo.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test",
+    "ci": "npm run build && npm test",
+    "start": "node dist/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/inspector": "^2.7.0",
+    "@types/node": "^24.10.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
