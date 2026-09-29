@@ -1,0 +1,13 @@
+{
+  "tasks": [
+    {
+      "task_key": "HW-WEATHER-Khannanova",
+      "external_id": "HW-WEATHER-Khannanova",
+      "title": "Weather MCP 2.0: find_safe_weather_window",
+      "status": "VERIFIED",
+      "artifact_dir": "artifacts/HW-WEATHER-Khannanova",
+      "created_at": "2026-09-27T12:06:36Z",
+      "updated_at": "2026-09-27T16:45:49Z"
+    }
+  ]
+}

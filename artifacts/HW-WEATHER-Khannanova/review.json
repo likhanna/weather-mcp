@@ -1,0 +1,57 @@
+{
+  "verdict": "approve",
+  "acceptance_criteria": [
+    {
+      "criterion": "Новый tool имеет строгую Zod-схему и duration_hours от 1 до 8.",
+      "status": "verified",
+      "evidence": "weather-mcp/src/index.ts регистрирует find_safe_weather_window с .strict(), enum work_type и integer min(1)/max(8); test/find-safe-weather-window.test.mjs проверяет дробь, 9, лишнее поле и недопустимый тип работ через MCP."
+    },
+    {
+      "criterion": "Будущее московское время, пятидневный горизонт, полные часовые старты и полное помещение кандидата в диапазон.",
+      "status": "verified",
+      "evidence": "weather-mcp/src/time.ts реализует разбор фиксированного UTC+03:00, проверку search_start >= now и search_end <= now+5 суток, округление старта вверх и условие candidate end <= interval end. Набор тестов проверяет границы now/now+5d, минутные starts, конец ровно на search_end, пустой диапазон, переходы и 1000 seeded интервалов с oracle."
+    },
+    {
+      "criterion": "Оценка всех кандидатов выполняется по одному forecast response; валидируются все требуемые часовые buckets, включая максимальный край.",
+      "status": "verified",
+      "evidence": "weather-mcp/src/open-meteo.ts::findSafeWeatherWindow делает один вызов fetchJson для forecast, строит requiredPeriod от первого старта до конца последнего кандидата и затем проверяет каждый час каждого окна. Тесты минутных endpoints и now+5d проверяют требуемые buckets и отказ при отсутствии последнего bucket; тест сервиса считает ровно один forecast вызов."
+    },
+    {
+      "criterion": "Риск использует общую логику; сортировка детерминирована по risk, factors.length и времени.",
+      "status": "verified",
+      "evidence": "Новый flow вызывает существующий assessRisk из weather-mcp/src/risk.ts; weather-mcp/src/weather-windows.ts сортирует по LOW/MEDIUM/HIGH, длине factors и UTC timestamp. Тесты проверяют порядок, перестановочную инвариантность, максимум 3*N факторов и 1000 generated intervals."
+    },
+    {
+      "criterion": "Успешный structuredContent имеет выбранное окно, до трёх альтернатив, число оценённых кандидатов и метаданные.",
+      "status": "verified",
+      "evidence": "weather-mcp/src/open-meteo.ts возвращает selected_window, alternatives, candidates_checked, location, work_type, source и fetched_at; weather-mcp/src/index.ts исключает внутреннее поле kind из публичного результата. MCP тест проверяет совпадение content/structuredContent, 4 checked и 3 alternatives; сервисный тест проверяет metadata и fetched_at."
+    },
+    {
+      "criterion": "Неизвестный/неоднозначный город, сбои сервиса и отсутствие кандидатов дают controlled error без частичного результата.",
+      "status": "verified",
+      "evidence": "Сервис возвращает not_found/ambiguous до forecast и бросает контролируемые InputError/WeatherDataError при нуле кандидатов, сетевых ошибках и неполном forecast. MCP handler отображает неуспешный результат в isError без structuredContent, а исключения — в контролируемое сообщение без structuredContent. Unit/service тесты покрывают неизвестный/неоднозначный город, ноль кандидатов, ошибки и missing final bucket; MCP тест покрывает schema refusal."
+    },
+    {
+      "criterion": "Три существующих инструмента сохраняют контракты; README обновлён.",
+      "status": "verified",
+      "evidence": "Инспекция weather-mcp/src/index.ts показывает отдельную регистрацию нового tool, прежние три handlers сохранены. Существующие contract tests обновлены только для tool list 3→4 и продолжают проверять старые ответы; сообщённый npm run ci результат включает 39 passed. README описывает новый tool и семантики. Diff unavailable из-за отсутствия .git, поэтому сравнение файлов с предшествующей ревизией невозможно."
+    },
+    {
+      "criterion": "npm run ci и ручной успешный/отказной MCP вызовы проходят.",
+      "status": "verified",
+      "evidence": "Воспроизведено в этом review: npm run ci после запроса разрешённого elevated запуска завершился exit code 0; tsc build успешен, Node test runner сообщил 39 passed, 0 failed, 0 skipped. Повтор ручного Inspector запроса не выполнялся по инструкции; verification.md содержит команды, exit codes и сохранённые результаты успешного вызова и duration=9 refusal."
+    }
+  ],
+  "findings": [],
+  "checks_reproduced": [
+    "npm run ci в weather-mcp: sandbox execution достигла build success, но test runner завершился до тестов с uv_os_get_passwd ENOMEM; после разрешённого elevated rerun команда завершилась exit 0 (tsc build success; 39 passed, 0 failed, 0 skipped)."
+  ],
+  "checks_not_reproduced": [
+    "MCP Inspector tools/list и live tools/call не запускались повторно согласно заданию; использованы записанные команды и результаты artifacts/HW-WEATHER-Khannanova/verification.md.",
+    "Полный git diff и исходная ревизия недоступны: рабочая папка weather-mcp не содержит .git; проверены перечисленные изменённые файлы, новые тесты/документация и сохранённые contract tests."
+  ],
+  "residual_risks": [
+    "Полный diff и исходная ревизия не доступны из-за отсутствия .git. В изменённых файлах текущие старые registrations/handlers и risk.ts соответствуют рассмотренному прежнему состоянию; существующие contract tests прошли в воспроизведённом CI.",
+    "Live успешный ответ зависит от меняющихся данных и доступности Open-Meteo; сохранённый успешный вызов подтверждает только состояние на момент его выполнения."
+  ]
+}

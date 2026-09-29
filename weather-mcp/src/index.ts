@@ -6,7 +6,7 @@ import { startHealthServer } from "./health.js";
 import { cleanCity, MemoryCache, normalizeCity, WEATHER_CACHE_TTL_MS } from "./cache.js";
 import { OpenMeteoRiskService, WeatherDataError, WEATHER_UNAVAILABLE_MESSAGE } from "./open-meteo.js";
 import { InputError, parseWorkPeriod } from "./time.js";
-import type { RiskResult, RiskRequest } from "./open-meteo.js";
+import type { RiskResult, RiskRequest, SafeWindowRequest } from "./open-meteo.js";
 
 const GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_API = "https://api.open-meteo.com/v1/forecast";
@@ -357,6 +357,49 @@ export function createServer(
         };
       }
     }
+  );
+
+  server.registerTool(
+    "find_safe_weather_window",
+    {
+      title: "Find a safe weather window",
+      description:
+        "Finds the safest full-hour start windows for outdoor work in a Moscow-time search interval.",
+      inputSchema: z.object({
+        city: z.string().trim().min(1, "Укажите название города.").max(120),
+        work_type: z.enum(["maintenance", "installation", "inspection"]),
+        search_start: z.string(),
+        search_end: z.string(),
+        duration_hours: z.number().int().min(1).max(8),
+      }).strict(),
+    },
+    async (request) => {
+      try {
+        const result = await riskService.findSafeWeatherWindow(request as SafeWindowRequest);
+        if (result.kind !== "search_result") {
+          return {
+            content: [{ type: "text" as const, text: result.message }],
+            isError: true,
+          };
+        }
+        const { kind: _kind, ...structuredContent } = result;
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(structuredContent, null, 2) }],
+          structuredContent,
+          isError: false,
+        };
+      } catch (error) {
+        const message = error instanceof WeatherDataError
+          ? WEATHER_UNAVAILABLE_MESSAGE
+          : error instanceof InputError
+            ? error.message
+            : "Не удалось найти безопасное погодное окно. Попробуйте позже.";
+        return {
+          content: [{ type: "text" as const, text: message }],
+          isError: true,
+        };
+      }
+    },
   );
 
   return server;

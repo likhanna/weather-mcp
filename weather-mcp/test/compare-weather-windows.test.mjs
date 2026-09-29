@@ -53,7 +53,7 @@ test('compare_weather_windows ranks all nine ordered risk pairs and retains both
       const requests = [];
       await withClient({ assess: async (request) => { requests.push(request); return assessment(requests.length === 1 ? first : second); } }, async (client) => {
         const listed = await client.listTools();
-        assert.deepEqual(listed.tools.map(({ name }) => name).sort(), ['assess_weather_risk', 'compare_weather_windows', 'get_weather']);
+        assert.deepEqual(listed.tools.map(({ name }) => name).sort(), ['assess_weather_risk', 'compare_weather_windows', 'find_safe_weather_window', 'get_weather']);
         const result = await callCompare(client);
         assert.equal(result.isError, false);
         assert.equal(requests.length, 2);
