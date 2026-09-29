@@ -58,7 +58,7 @@ test('MCP exposes the new tool and preserves get_weather behavior', async () => 
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map(({ name }) => name).sort(), ['assess_weather_risk', 'compare_weather_windows', 'get_weather']);
+    assert.deepEqual(tools.tools.map(({ name }) => name).sort(), ['assess_weather_risk', 'compare_weather_windows', 'find_safe_weather_window', 'get_weather']);
     const newResult = await client.callTool({
       name: 'assess_weather_risk',
       arguments: { city: 'Dubai', start_at: '2026-09-23T16:00', work_type: 'inspection', duration_hours: 1 }
@@ -72,7 +72,7 @@ test('MCP exposes the new tool and preserves get_weather behavior', async () => 
     const invalid = await client.callTool({ name: 'assess_weather_risk', arguments: { city: '', start_at: 'invalid', work_type: 'unknown', duration_hours: 0 } });
     assert.equal(invalid.isError, true);
     const afterError = await client.listTools();
-    assert.equal(afterError.tools.length, 3);
+    assert.equal(afterError.tools.length, 4);
   } finally {
     await client.close();
     await server.close();
@@ -120,7 +120,7 @@ test('MCP reports invalid date without fetching or stopping the server', async (
     assert.equal(tinyPeriod.isError, true);
     assert.match(tinyPeriod.content[0].text, /слишком мала/);
     assert.equal(calls, 0);
-    assert.equal((await client.listTools()).tools.length, 3);
+    assert.equal((await client.listTools()).tools.length, 4);
   } finally {
     await client.close();
     await server.close();
@@ -222,7 +222,7 @@ test('both MCP tools return one external failure message and retry the same requ
           assert.equal(second.isError, toolName === 'get_weather' ? undefined : false);
           assert.equal(calls, afterFailure + 2);
           assert.deepEqual(JSON.parse(second.content[0].text), JSON.parse(JSON.stringify(second.structuredContent)));
-          assert.equal((await client.listTools()).tools.length, 3);
+          assert.equal((await client.listTools()).tools.length, 4);
         });
       }
     }

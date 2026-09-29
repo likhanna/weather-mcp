@@ -1,0 +1,49 @@
+task_id: "HW-WEATHER-Khannanova"
+summary: "Новый find_safe_weather_window, один свежий forecast-запрос на вызов, прежние MCP контракты неизменны."
+architecture_decision: "См. implementation-plan-v2.md: диапазон/кандидаты в time.ts; отдельный сервисный поиск в open-meteo.ts; новая регистрация и схема в index.ts; один forecast без кэширования; валидировать только нужные buckets, оценивать через assessRisk и сортировать по risk/factors.length/start."
+alternatives_considered:
+  - "Вызов assess для каждого кандидата — отклонён, потому что даст несколько forecast requests."
+  - "Дублирование порогов или рефакторинг старых tools — отклонено как лишнее и рискованное."
+steps:
+  - id: 1
+    action: "Добавить парсер диапазона и генератор канонических уникальных часовых кандидатов; применять утверждённые границы и единый now snapshot."
+    components: ["weather-mcp/src/time.ts", "weather-mcp/test/risk-time.test.mjs или новый suite"]
+    dependencies: ["Moscow YYYY-MM-DDTHH:mm", "UTC/MSK helpers"]
+    risks: ["минутные границы", "off-by-one", "регрессия parseWorkPeriod"]
+    validation: ["границы :00/:01/:59 и точное совпадение конца", "генеративно проверить oracle, bounds и уникальность"]
+  - id: 2
+    action: "Добавить сервисный поиск с exact geocoding, одним forecast запросом, проверкой объединения нужных buckets всех кандидатов, assessRisk и сортировкой."
+    components: ["weather-mcp/src/open-meteo.ts", "weather-mcp/src/risk.ts (без изменения порогов)", "test/open-meteo.test.mjs"]
+    dependencies: ["шаг 1", "существующие Open-Meteo helpers"]
+    risks: ["coverage края", "частичный результат"]
+    validation: ["1 geocoding + 1 forecast при успехе", "ошибки/ambiguous без окон и без выбора города"]
+  - id: 3
+    action: "Добавить Zod, MCP tool registration и отдельный structuredContent."
+    components: ["weather-mcp/src/index.ts", "test/mcp-health.test.mjs", "новый MCP integration suite"]
+    dependencies: ["шаги 1–2", "утверждение публичной схемы в v2"]
+    risks: ["response mapping", "регрессия старых контрактов"]
+    validation: ["новое имя/схема/success/error без partial result; старые три прежние"]
+  - id: 4
+    action: "Обновить README; после approval выполнить ci и два MCP ручных вызова."
+    components: ["weather-mcp/README.md", "weather-mcp/test/*.test.mjs", "verification.md после реализации"]
+    dependencies: ["шаги 1–3", "approval implementation-plan-v2.md"]
+    risks: ["docs/schema drift", "недоступность сети/Inspector"]
+    validation: ["npm run ci", "Inspector/Codex success и controlled refusal"]
+tests:
+  - "Zod: только целые duration 1..8; invalid вход отвергается до fetch."
+  - "Время: формат/дата/пустой/обратный интервал и границы now/now+5d; invalid без запросов."
+  - "Кандидаты: округление к первому часу, end==search_end, минутное превышение, duration 1/8, пустой результат; уникальный start без дубликатов."
+  - "Генеративно >=1000 seed случаев сравнить с независимым oracle и проверить перестановочную инвариантность `(risk,factors.length,start)`."
+  - "Risk: assessRisk max; factors.length считает события час+метрика."
+  - "Geocoding: exact/not_found/ambiguous; forecast count 1/0/0."
+  - "Forecast success: один запрос; валидировать только требуемые candidate buckets; `10:30–13:00` duration 2 требует 11/12, не 10; проверить максимальный край `now+5d`; failure без partial result."
+  - "Cache/fetched_at: новый flow без кэша; UTC `fetched_at` соответствует полученному forecast response."
+  - "structuredContent: selected_window, максимум 3 alternatives, candidates_checked, location, work_type, source, fetched_at."
+  - "Compatibility трёх старых tools; npm run ci и два ручных MCP вызова после approval."
+compatibility_checks: ["В tool list добавляется ровно одно имя.", "Существующие schemas/results/errors остаются без изменения.", "Сохранить старый parseWorkPeriod и assessRisk thresholds."]
+migration: ["Нет миграции данных; MCP API изменение аддитивно."]
+rollback: ["Revert новых фрагментов исходников, тестов, README; старые tools не затронуты."]
+required_approvals: ["Critic одобрил v2 для пользовательского рассмотрения", "Пользователь одобрил implementation-plan-v2.md 2026-09-27 до исходных изменений"]
+open_questions: []
+status: PLANNED
+approval_status: APPROVED_BY_USER_2026-09-27T15:43:56Z
